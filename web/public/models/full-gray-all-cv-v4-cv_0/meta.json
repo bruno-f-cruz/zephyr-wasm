@@ -1,0 +1,22 @@
+{
+  "checkpoint": "full-gray-all-cv-v4/cv_0/seed-17/best.pt",
+  "crop": [
+    96,
+    96
+  ],
+  "target_size": [
+    360,
+    270
+  ],
+  "select_fs": 60.0,
+  "output_fs": 60.0,
+  "mean": 84.51544612390519,
+  "std": 52.51303956310238,
+  "halo": 1,
+  "embed": 128,
+  "chunk": 256,
+  "receptive_field": 253,
+  "window": 1024,
+  "head_threshold": 0.7,
+  "head_min_distance_s": 0.05
+}

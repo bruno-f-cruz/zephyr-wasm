@@ -1,0 +1,25 @@
+{
+  "name": "zephyr-wasm",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/copy-ort.mjs",
+    "prebuild": "node scripts/copy-ort.mjs",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "hyparquet-writer": "0.16.11",
+    "mp4box": "2.4.1",
+    "onnxruntime-web": "1.30.0",
+    "uplot": "1.6.32"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.4"
+  }
+}

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zephyr in the browser</title>
+    <link rel="icon" href="./favicon.svg" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Zephyr in the browser</h1>
+      <p class="lede">
+        Breathing from a face video, predicted on this computer's GPU. The video never
+        leaves the machine.
+      </p>
+    </header>
+    <main>
+      <section id="step-video">
+        <h2><span class="n">1</span> Video</h2>
+        <label class="drop" id="drop">
+          <input type="file" id="file" accept="video/mp4,.mp4,.mov" />
+          <span id="drop-text">Choose an mp4, or drop it here</span>
+        </label>
+        <dl id="video-info" hidden></dl>
+        <div class="row" id="rate-row" hidden>
+          <label
+            >Frame rate (Hz)
+            <input type="number" id="rate" step="any" min="1" />
+          </label>
+          <p class="hint">
+            Frame <i>i</i> is taken at <i>i</i> / rate s, as
+            <code>zephyr predict --frame-rate</code>. The container's rate is filled in; give
+            the camera's true rate if you know it.
+          </p>
+        </div>
+      </section>
+
+      <section id="step-crop" hidden>
+        <h2><span class="n">2</span> Crop</h2>
+        <p class="hint">
+          Click to centre the box on the snout. The box is resized to the network's crop, so
+          its size sets how much of the face that crop covers.
+        </p>
+        <div class="crop">
+          <canvas id="frame"></canvas>
+          <div class="side">
+            <label
+              >Box size (video pixels)
+              <input type="number" id="box-size" min="8" step="1" />
+            </label>
+            <label
+              >Corner (x, y)
+              <span class="pair"
+                ><input type="number" id="box-x" step="1" /><input type="number" id="box-y" step="1"
+              /></span>
+            </label>
+            <p class="hint" id="geometry"></p>
+            <figure>
+              <canvas id="crop-preview" width="96" height="96"></canvas>
+              <figcaption>What the network sees</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section id="step-run" hidden>
+        <h2><span class="n">3</span> Predict</h2>
+        <div class="row">
+          <label
+            >Network
+            <select id="model"></select>
+          </label>
+          <label class="check"><input type="checkbox" id="cpu" /> CPU only</label>
+          <button id="run" class="primary">Predict</button>
+          <button id="stop" hidden>Stop</button>
+        </div>
+        <div id="progress" hidden>
+          <progress id="bar" max="1" value="0"></progress>
+          <p id="status"></p>
+        </div>
+      </section>
+
+      <section id="step-result" hidden>
+        <h2><span class="n">4</span> Breathing</h2>
+        <div class="row">
+          <p id="summary"></p>
+          <button id="save" class="primary">Download parquet</button>
+        </div>
+        <div id="overview" class="plot"></div>
+        <p class="hint">Click the rate to look at that part of the video.</p>
+        <div class="row">
+          <label
+            >Window
+            <input type="range" id="scrub" min="0" max="1" step="any" value="0" />
+          </label>
+          <label
+            >Seconds shown
+            <select id="span">
+              <option>5</option>
+              <option>10</option>
+              <option selected>20</option>
+              <option>60</option>
+            </select>
+          </label>
+        </div>
+        <div id="detail" class="plot"></div>
+      </section>
+      <p id="error" role="alert" hidden></p>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
