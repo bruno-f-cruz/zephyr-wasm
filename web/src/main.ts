@@ -36,6 +36,7 @@ async function listModels() {
 }
 
 async function network(): Promise<Network> {
+  await modelsListed;
   const name = $<HTMLSelectElement>("model").value;
   const cpu = $<HTMLInputElement>("cpu").checked;
   const key = `${name}:${cpu}`;
@@ -246,5 +247,6 @@ $<HTMLSelectElement>("span").addEventListener("change", (e) => {
 });
 $<HTMLSelectElement>("model").addEventListener("change", () => drawCrop());
 
-listModels().catch(fail);
+const modelsListed = listModels();
+modelsListed.catch(fail);
 if (!("VideoDecoder" in window)) fail("this browser has no WebCodecs: use a recent Chrome or Edge");
