@@ -6,7 +6,7 @@ embeddings on the output grid ``(1, T_out, E)`` -> signal and onset logits
 ``(1, T_out)``. The linear resampling between the two grids
 (``zephyr.model.resample_embeddings``) runs in the browser.
 
-    uv run --project C:/git/AllenNeuralDynamics/zephyr --with onnx --with onnxruntime \
+    uv run --project <zephyr> --with onnx --with onnxruntime \
         python tools/export_onnx.py --checkpoint best.pt --out web/public/models/<name>
 """
 

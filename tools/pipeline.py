@@ -6,7 +6,7 @@ box's native pixels area-averaged onto the crop and turned to full range, the en
 in chunks with their halo, linear resampling onto the output grid, the temporal
 network in overlapping windows, a z-score, and the onset head's peaks.
 
-    uv run --project C:/git/AllenNeuralDynamics/zephyr --with onnxruntime python \
+    uv run --project <zephyr> --with onnxruntime python \
         tools/pipeline.py testdata/face-60s.mp4 --frame-rate 240.3846 --box 450 215 \
         --models web/public/models/full-gray-all-cv-v4-cv_0 --compare <zephyr.parquet>
 """

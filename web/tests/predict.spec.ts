@@ -12,7 +12,7 @@ const cpu = process.env.CPU === "1";
 
 test("a video is predicted and downloaded", async ({ page }) => {
   page.on("console", (m) => console.log(`[browser] ${m.type()}: ${m.text()}`));
-  await page.goto("http://localhost:5179/");
+  await page.goto(process.env.URL ?? "http://localhost:5179/");
   await page.setInputFiles("#file", video);
   await expect(page.locator("#step-crop")).toBeVisible({ timeout: 120_000 });
   await page.fill("#rate", rate);
@@ -25,7 +25,7 @@ test("a video is predicted and downloaded", async ({ page }) => {
   const progress = setInterval(async () => {
     console.log(await page.locator("#status").textContent().catch(() => ""));
   }, 10_000);
-  await expect(page.locator("#step-result")).toBeVisible({ timeout: 14 * 60_000 });
+  await expect(page.locator("#step-result")).toBeVisible({ timeout: 39 * 60_000 });
   clearInterval(progress);
   console.log("summary:", await page.locator("#summary").textContent());
   console.log("geometry:", await page.locator("#geometry").textContent());

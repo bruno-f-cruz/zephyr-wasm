@@ -88,10 +88,7 @@ export class Plots {
         axes: [{ ...axes[0], label: "minutes" }, { ...axes[1], label: "breaths / s" }],
         legend: { show: false },
         series: [{}, { stroke: css("--series-1"), width: 1.5, spanGaps: false }],
-        hooks: {
-          drawSeries: [() => {}],
-          draw: [(u) => this.drawWindow(u)],
-        },
+        hooks: { draw: [(u) => this.drawWindow(u)] },
       },
       [bins, med],
       this.overviewEl,

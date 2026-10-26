@@ -80,8 +80,6 @@ export class Cropper {
   readonly x: Axis;
   readonly y: Axis;
   readonly rect: DOMRectInit; // even-aligned native rectangle to copy
-  private buffer: Uint8Array | null = null;
-  private rows: Float32Array;
   private canvas: OffscreenCanvas | null = null;
 
   constructor(readonly g: Geometry, readonly mean: number, readonly std: number) {
@@ -94,12 +92,12 @@ export class Cropper {
     const x1 = Math.min(g.native[0], (this.x.lo + this.x.n + 1) & ~1);
     const y1 = Math.min(g.native[1], (this.y.lo + this.y.n + 1) & ~1);
     this.rect = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
-    this.rows = new Float32Array(this.y.n * g.crop);
   }
 
   /**
    * The crop of *frame*, gray 0..255 (into *out*, crop x crop), from its luma when the
-   * frame can be read as YUV, else from its RGB as the browser draws it.
+   * frame can be read as YUV, else from its RGB as the browser draws it. Several may
+   * run at once: each has its own buffers.
    */
   async gray(frame: VideoFrame, out: Float32Array): Promise<void> {
     const r = this.rect as Required<DOMRectInit>;
@@ -108,10 +106,9 @@ export class Cropper {
     let step = 1;
     let full = false;
     if (frame.format && /^(I4|NV12|I420)/.test(frame.format)) {
-      const size = frame.allocationSize({ rect: r });
-      if (!this.buffer || this.buffer.length < size) this.buffer = new Uint8Array(size);
-      const layout = await frame.copyTo(this.buffer, { rect: r });
-      luma = this.buffer.subarray(layout[0].offset);
+      const buffer = new Uint8Array(frame.allocationSize({ rect: r }));
+      const layout = await frame.copyTo(buffer, { rect: r });
+      luma = buffer.subarray(layout[0].offset);
       stride = layout[0].stride;
       full = frame.colorSpace?.fullRange === true;
     } else {
@@ -132,8 +129,9 @@ export class Cropper {
 
   /** Area-average the copied luma onto the crop, to full range, then normalise. */
   resample(luma: ArrayLike<number>, stride: number, step: number, full: boolean, out: Float32Array) {
-    const { x, y, rows } = this;
+    const { x, y } = this;
     const crop = this.g.crop;
+    const rows = new Float32Array(y.n * crop);
     const dx = x.lo - (this.rect.x as number);
     const dy = y.lo - (this.rect.y as number);
     for (let j = 0; j < y.n; j++) {

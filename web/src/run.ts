@@ -3,7 +3,7 @@
 // as they come, then the temporal network over the whole.
 import { Cropper, type Geometry } from "./crop";
 import { Encoder, predictTrace, type Network, type Prediction } from "./model";
-import { decode, type VideoInfo } from "./video";
+import { decode, presentationIndex, unreferenced, type VideoInfo } from "./video";
 
 export interface Progress {
   stage: "decoding" | "predicting";
@@ -36,6 +36,7 @@ export async function predictVideo(
   frameRate: number,
   onProgress: (p: Progress) => void,
   signal?: AbortSignal,
+  acceleration?: HardwareAcceleration,
 ): Promise<Result> {
   const total = video.samples.length;
   const picks = anchors(total, frameRate, net.meta.select_fs);
@@ -44,31 +45,51 @@ export async function predictVideo(
   const size = g.crop * g.crop;
   const started = performance.now();
 
-  // Frames come out in presentation order; reading a crop is asynchronous, so the
-  // crops are chained to keep that order, and the encoder drains between reads.
-  let index = 0;
-  let next = 0;
-  let chain: Promise<void> = Promise.resolve();
+  // A frame no other frame refers to is decoded only if it is kept (most of a fast
+  // camera's B-frames are skipped). Frames are told apart by their timestamps, so
+  // skipped ones leave no gap, and their crops are copied several at a time, then
+  // handed to the encoder in order.
+  const { bySample, byTimestamp } = presentationIndex(video);
+  const kept = new Map<number, number>(); // presentation index -> its pick
+  picks.forEach((p, k) => kept.set(p, k));
+  const skippable = unreferenced(video);
+  const wanted = skippable ? (s: number, data: Uint8Array) => kept.has(bySample[s]) || !skippable(data) : undefined;
+  const ready = new Map<number, Float32Array>();
+  let next = 0; // the next pick to give the encoder
+  let copying = 0; // crops being copied
   let failure: unknown = null;
   let lastShown = 0;
   const onFrame = (frame: VideoFrame) => {
-    const i = index++;
-    if (next < picks.length && i === picks[next]) {
-      next++;
+    const i = byTimestamp.get(frame.timestamp);
+    const k = i === undefined ? undefined : kept.get(i);
+    if (k === undefined) {
+      if (i === undefined) failure ??= new Error(`a frame at ${frame.timestamp} us is in no sample`);
+      frame.close();
+    } else {
       const out = new Float32Array(size);
-      chain = chain
-        .then(() => cropper.gray(frame, out))
-        .then(() => encoder.push(out))
+      copying++;
+      cropper
+        .gray(frame, out)
+        .then(() => {
+          ready.set(k, out);
+          while (ready.has(next)) {
+            encoder.push(ready.get(next)!);
+            ready.delete(next++);
+          }
+        })
         .catch((e) => (failure ??= e))
-        .finally(() => frame.close());
-    } else frame.close();
+        .finally(() => {
+          frame.close();
+          copying--;
+        });
+    }
     const now = performance.now();
     if (now - lastShown > 200) {
       lastShown = now;
-      onProgress({ stage: "decoding", done: index, total });
+      onProgress({ stage: "decoding", done: next > 0 ? picks[next - 1] + 1 : 0, total });
     }
   };
-  const decoding = decode(video, onFrame, 0, total, signal);
+  const decoding = decode(video, onFrame, { signal, wanted, acceleration });
   // Encode while decoding: wake every 100 ms to drain the chunks that filled
   let finished = false;
   decoding.finally(() => (finished = true)).catch(() => {});
@@ -78,11 +99,10 @@ export async function predictVideo(
     await encoder.drain();
   }
   await decoding;
-  await chain;
+  while (copying > 0) await new Promise((r) => setTimeout(r, 10));
   if (failure) throw failure;
   await encoder.drain(true);
-  onProgress({ stage: "decoding", done: index, total });
-  if (index !== total) throw new Error(`decoded ${index} frames, the index lists ${total}`);
+  onProgress({ stage: "decoding", done: total, total });
   if (encoder.count !== picks.length) {
     throw new Error(`encoded ${encoder.count} of ${picks.length} frames`);
   }

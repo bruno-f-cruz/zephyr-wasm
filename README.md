@@ -16,9 +16,10 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-`npm run build` writes a static site to `web/dist/`; any static host serves it, as long
-as it sends the two cross-origin isolation headers in `vite.config.ts` (for threaded
-WebAssembly; WebGPU works without them).
+`npm run build` writes a static site to `web/dist/`, which any static host serves; on
+every push to `main`, `.github/workflows/pages.yml` publishes it on GitHub Pages. Hosts
+that send the cross-origin isolation headers in `vite.config.ts` give the CPU fallback
+its threads; WebGPU does not need them.
 
 ## How it works
 
@@ -34,6 +35,20 @@ WebAssembly; WebGPU works without them).
 
 Only one 128-number embedding per kept frame is held, so an hour of video takes about
 130 MB, not the 2.4 GB of crops.
+
+### Speed
+
+Decoding sets the pace, not the network. On a 240 Hz 720x540 face video (Edge, one
+GPU), measured on a 60-second clip:
+
+| | frames/s |
+| --- | --- |
+| decoding every frame | ~2,400 |
+| decoding only what is needed (frames no other frame refers to are skipped unless kept: half of them here) | ~4,300 |
+| that, and copying each kept frame's box off the GPU | ~2,000 |
+
+so an hour at 240 Hz should take about 9 minutes; the copy is the limit (several decoders at
+once, or software decoding, do not beat it). `npm run bench` measures it.
 
 ### Matching zephyr
 

@@ -4,12 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "predev": "node scripts/copy-ort.mjs",
-    "prebuild": "node scripts/copy-ort.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "playwright test"
+    "test": "playwright test tests/predict.spec.ts",
+    "bench": "playwright test tests/bench.spec.ts"
   },
   "dependencies": {
     "hyparquet-writer": "0.16.11",

@@ -2,7 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "tests",
-  timeout: 15 * 60_000,
+  timeout: 40 * 60_000, // an hour of video takes minutes
   use: {
     channel: "msedge", // H.264 decoding (Playwright's own Chromium has none)
     headless: !process.env.HEADED,

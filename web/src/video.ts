@@ -100,13 +100,16 @@ function description(trak: any): Uint8Array | undefined {
   return undefined;
 }
 
-export function decoderConfig(video: VideoInfo): VideoDecoderConfig {
+export function decoderConfig(
+  video: VideoInfo,
+  acceleration: HardwareAcceleration = "prefer-hardware",
+): VideoDecoderConfig {
   return {
     codec: video.codec,
     codedWidth: video.width,
     codedHeight: video.height,
     description: video.description,
-    hardwareAcceleration: "prefer-hardware",
+    hardwareAcceleration: acceleration,
     optimizeForLatency: false,
   };
 }
@@ -117,21 +120,29 @@ const QUEUE = 48;
 /**
  * Decode samples [first, stop) (decode order) and hand every output frame, in
  * presentation order, to *onFrame*, which must close it. Reads the file in runs of
- * about READ_BYTES and keeps at most QUEUE chunks in the decoder.
+ * about READ_BYTES and keeps at most QUEUE chunks in the decoder. With *wanted*, a
+ * sample it refuses is never decoded (only safe for one no other frame refers to).
  */
+export interface DecodeOptions {
+  first?: number;
+  stop?: number;
+  signal?: AbortSignal;
+  wanted?: (sample: number, data: Uint8Array) => boolean;
+  acceleration?: HardwareAcceleration;
+}
+
 export async function decode(
   video: VideoInfo,
   onFrame: (frame: VideoFrame) => void,
-  first = 0,
-  stop = video.samples.length,
-  signal?: AbortSignal,
+  options: DecodeOptions = {},
 ): Promise<void> {
+  const { first = 0, stop = video.samples.length, signal, wanted, acceleration } = options;
   let failure: unknown = null;
   const decoder = new VideoDecoder({
     output: onFrame,
     error: (e) => (failure = e),
   });
-  decoder.configure(decoderConfig(video));
+  decoder.configure(decoderConfig(video, acceleration));
   const { samples, file, timescale } = video;
   let i = first;
   while (i < stop) {
@@ -148,6 +159,8 @@ export async function decode(
     const bytes = new Uint8Array(await file.slice(start, end).arrayBuffer());
     for (let k = i; k < j; k++) {
       const s = samples[k];
+      const data = bytes.subarray(s.offset - start, s.offset - start + s.size);
+      if (wanted && !wanted(k, data)) continue; // nothing refers to it, nor wants it
       while (decoder.decodeQueueSize > QUEUE) {
         await new Promise((resolve) => decoder.addEventListener("dequeue", resolve, { once: true }));
         if (failure) throw failure;
@@ -157,7 +170,7 @@ export async function decode(
           type: s.sync || k === first ? "key" : "delta",
           timestamp: Math.round((1e6 * s.cts) / timescale),
           duration: Math.round((1e6 * s.duration) / timescale),
-          data: bytes.subarray(s.offset - start, s.offset - start + s.size),
+          data,
         }),
       );
     }
@@ -185,7 +198,42 @@ export async function frameAt(video: VideoInfo, seconds: number): Promise<VideoF
       best?.close();
       best = frame;
     } else frame.close();
-  }, key, stop);
+  }, { first: key, stop });
   if (best === null) throw new Error("no frame decoded");
   return best;
+}
+
+/** Each sample's presentation index (its rank by presentation time), by the frame
+ * timestamp WebCodecs gives it back with, in microseconds. */
+export function presentationIndex(video: VideoInfo): { bySample: Int32Array; byTimestamp: Map<number, number> } {
+  const order = video.samples.map((s, k) => [s.cts, k] as const).sort((a, b) => a[0] - b[0]);
+  const bySample = new Int32Array(order.length);
+  const byTimestamp = new Map<number, number>();
+  order.forEach(([cts, k], rank) => {
+    bySample[k] = rank;
+    byTimestamp.set(Math.round((1e6 * cts) / video.timescale), rank);
+  });
+  return { bySample, byTimestamp };
+}
+
+/** Whether no other frame can refer to an H.264 sample: every slice in it has
+ * nal_ref_idc 0. ``null`` when the stream is not H.264 (then every frame is kept). */
+export function unreferenced(video: VideoInfo): ((data: Uint8Array) => boolean) | null {
+  if (!video.codec.startsWith("avc") || !video.description) return null;
+  const size = (video.description[4] & 3) + 1; // NAL length field, from avcC
+  return (data) => {
+    let slices = 0;
+    for (let p = 0; p + size < data.length; ) {
+      let len = 0;
+      for (let b = 0; b < size; b++) len = len * 256 + data[p + b];
+      const head = data[p + size];
+      const type = head & 31;
+      if (type === 1 || type === 5) {
+        if ((head >> 5) & 3) return false;
+        slices++;
+      }
+      p += size + len;
+    }
+    return slices > 0;
+  };
 }

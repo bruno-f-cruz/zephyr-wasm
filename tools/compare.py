@@ -1,6 +1,6 @@
 """Compare the web app's prediction parquet with zephyr predict's for the same video.
 
-    uv run --project C:/git/AllenNeuralDynamics/zephyr python tools/compare.py \
+    uv run --project <zephyr> python tools/compare.py \
         testdata/web/face-60s.prediction.parquet testdata/zephyr/face-60s.prediction.parquet
 """
 

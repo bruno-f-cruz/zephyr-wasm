@@ -27,8 +27,6 @@ export interface Network {
   provider: string;
 }
 
-ort.env.wasm.wasmPaths = `${import.meta.env.BASE_URL}ort/`;
-
 export async function loadNetwork(url: string, prefer: "webgpu" | "wasm" = "webgpu"): Promise<Network> {
   const meta: Meta = await (await fetch(`${url}/meta.json`)).json();
   const tries = prefer === "webgpu" && "gpu" in navigator ? ["webgpu", "wasm"] : ["wasm"];
