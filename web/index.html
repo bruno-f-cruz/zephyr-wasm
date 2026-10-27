@@ -5,10 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Zephyr in the browser</title>
     <link rel="icon" href="./favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Inter:400,500,700,800%7CJetBrains+Mono:400&amp;display=swap"
+    />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <header>
+    <div class="bar">
+      <div>
+        <img src="./favicon.svg" alt="" />
+        <strong>Zephyr</strong>
+        <a href="https://allenneuraldynamics.github.io/zephyr/">Documentation</a>
+      </div>
+    </div>
+    <header class="hero">
       <h1>Zephyr in the browser</h1>
       <p class="lede">
         Breathing from a face video, predicted on this computer's GPU. The video never

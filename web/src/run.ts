@@ -2,7 +2,8 @@
 // grid (frame i at i / frameRate, as zephyr predict --frame-rate), crop and encode them
 // as they come, then the temporal network over the whole.
 import { Cropper, type Geometry } from "./crop";
-import { Encoder, predictTrace, type Network, type Prediction } from "./model";
+import { GpuCrops } from "./gpucrop";
+import { Encoder, cpuFrames, gpuDevice, gpuFrames, predictTrace, type Frame, type Network, type Prediction } from "./model";
 import { decode, presentationIndex, unreferenced, type VideoInfo } from "./video";
 
 export interface Progress {
@@ -41,7 +42,9 @@ export async function predictVideo(
   const total = video.samples.length;
   const picks = anchors(total, frameRate, net.meta.select_fs);
   const cropper = new Cropper(g, net.meta.mean, net.meta.std);
-  const encoder = new Encoder(net, picks.length);
+  // On the GPU the crop never leaves it (src/gpucrop.ts); else it is copied to the CPU.
+  const gpu = net.provider === "webgpu" ? new GpuCrops(await gpuDevice(), cropper, net.meta.mean, net.meta.std) : null;
+  const encoder = new Encoder(net, picks.length, gpu ? gpuFrames(net, gpu) : cpuFrames(net));
   const size = g.crop * g.crop;
   const started = performance.now();
 
@@ -54,11 +57,16 @@ export async function predictVideo(
   picks.forEach((p, k) => kept.set(p, k));
   const skippable = unreferenced(video);
   const wanted = skippable ? (s: number, data: Uint8Array) => kept.has(bySample[s]) || !skippable(data) : undefined;
-  const ready = new Map<number, Float32Array>();
+  const ready = new Map<number, Frame>();
   let next = 0; // the next pick to give the encoder
   let copying = 0; // crops being copied
   let failure: unknown = null;
   let lastShown = 0;
+  const copy = async (frame: VideoFrame) => {
+    const out = new Float32Array(size);
+    await cropper.gray(frame, out);
+    return out;
+  };
   const onFrame = (frame: VideoFrame) => {
     const i = byTimestamp.get(frame.timestamp);
     const k = i === undefined ? undefined : kept.get(i);
@@ -66,11 +74,10 @@ export async function predictVideo(
       if (i === undefined) failure ??= new Error(`a frame at ${frame.timestamp} us is in no sample`);
       frame.close();
     } else {
-      const out = new Float32Array(size);
       copying++;
-      cropper
-        .gray(frame, out)
-        .then(() => {
+      const made = gpu ? gpu.cropFrame(frame) : copy(frame);
+      made
+        .then((out) => {
           ready.set(k, out);
           while (ready.has(next)) {
             encoder.push(ready.get(next)!);

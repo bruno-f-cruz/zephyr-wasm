@@ -44,26 +44,67 @@ export async function loadNetwork(url: string, prefer: "webgpu" | "wasm" = "webg
   throw last;
 }
 
+export type Frame = Float32Array | GPUBuffer;
+
+/** How the encoder turns crops into an input tensor: CPU arrays, or GPU buffers kept on the GPU. */
+export interface FrameIO {
+  zeros: Frame;
+  tensor(frames: Frame[]): ort.Tensor;
+  release?(frames: Frame[]): void;
+}
+
+export function cpuFrames(net: Network): FrameIO {
+  const { crop } = net.meta;
+  const size = crop[0] * crop[1];
+  return {
+    zeros: new Float32Array(size),
+    tensor(frames) {
+      const data = new Float32Array(frames.length * size);
+      frames.forEach((f, i) => data.set(f as Float32Array, i * size));
+      return new ort.Tensor("float32", data, [1, 1, frames.length, crop[1], crop[0]]);
+    },
+  };
+}
+
+export function gpuFrames(net: Network, crops: { zeros: GPUBuffer; chunk(f: GPUBuffer[]): GPUBuffer; release(f: GPUBuffer[]): void }): FrameIO {
+  const { crop } = net.meta;
+  return {
+    zeros: crops.zeros,
+    tensor(frames) {
+      const buffer = crops.chunk(frames as GPUBuffer[]);
+      return ort.Tensor.fromGpuBuffer(buffer, {
+        dataType: "float32",
+        dims: [1, 1, frames.length, crop[1], crop[0]],
+        dispose: () => buffer.destroy(),
+      });
+    },
+    release: (frames) => crops.release(frames as GPUBuffer[]),
+  };
+}
+
+/** ONNX Runtime's own WebGPU device, once a WebGPU session exists. */
+export async function gpuDevice(): Promise<GPUDevice> {
+  return (await ort.env.webgpu.device) as GPUDevice;
+}
+
 /** Runs the encoder on crops as they come, each chunk with its halo. */
 export class Encoder {
-  private frames: Float32Array[] = [];
-  private zeros: Float32Array;
+  private frames: Frame[] = [];
   private out: Float32Array;
   count = 0; // embeddings made
   private started = false;
 
-  constructor(private net: Network, capacity: number) {
-    const { crop, embed, halo } = net.meta;
-    this.zeros = new Float32Array(crop[0] * crop[1]);
+  constructor(private net: Network, capacity: number, private io: FrameIO = cpuFrames(net)) {
+    const { embed, halo } = net.meta;
     this.out = new Float32Array(capacity * embed);
-    for (let i = 0; i < halo; i++) this.frames.push(this.zeros);
+    for (let i = 0; i < halo; i++) this.frames.push(io.zeros);
   }
 
   get pending(): number {
     return this.frames.length;
   }
 
-  push(crop: Float32Array) {
+  push(crop: Frame) {
     this.frames.push(crop);
     this.started = true;
   }
@@ -71,20 +112,18 @@ export class Encoder {
   /** Encode every full chunk waiting (all of them, padded with zeros, when *last*). */
   async drain(last = false): Promise<void> {
     const { chunk, halo } = this.net.meta;
-    if (last && this.started) for (let i = 0; i < halo; i++) this.frames.push(this.zeros);
+    if (last && this.started) for (let i = 0; i < halo; i++) this.frames.push(this.io.zeros);
     while (this.frames.length >= chunk + 2 * halo || (last && this.frames.length > 2 * halo)) {
       const take = Math.min(chunk, this.frames.length - 2 * halo);
       await this.run(this.frames.slice(0, take + 2 * halo));
+      this.io.release?.(this.frames.slice(0, take));
       this.frames = this.frames.slice(take);
     }
   }
 
-  private async run(frames: Float32Array[]) {
-    const { crop, embed } = this.net.meta;
-    const size = crop[0] * crop[1];
-    const data = new Float32Array(frames.length * size);
-    frames.forEach((f, i) => data.set(f, i * size));
-    const input = new ort.Tensor("float32", data, [1, 1, frames.length, crop[1], crop[0]]);
+  private async run(frames: Frame[]) {
+    const { embed } = this.net.meta;
+    const input = this.io.tensor(frames);
     const { embeddings } = await this.net.encoder.run({ frames: input });
     const values = embeddings.data as Float32Array;
     this.out.set(values, this.count * embed);

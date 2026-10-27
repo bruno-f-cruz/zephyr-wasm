@@ -1,1 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 9c2 0 2-5 4-5s2 8 4 8 2-6 4-6 2 3 2 3" fill="none" stroke="#1f6f8b" stroke-width="2"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f86e8"/>
+      <stop offset="1" stop-color="#2c55b0"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#sky)"/>
+  <!-- the mouse's head, in profile, snout to the right -->
+  <circle cx="86" cy="96" r="30" fill="#ffffff"/>
+  <circle cx="86" cy="96" r="17" fill="#f6b8c6"/>
+  <path d="M40 176 C30 122 78 88 124 110 C146 121 162 136 170 150
+           C158 163 136 175 104 181 C76 186 50 186 40 176 Z" fill="#ffffff"/>
+  <circle cx="122" cy="132" r="7" fill="#1f2933"/>
+  <circle cx="170" cy="150" r="8" fill="#e8738f"/>
+  <!-- breath: wisps from the nose -->
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-width="9">
+    <path d="M186 138 C200 128 210 132 218 120 C222 113 216 106 209 110" opacity="0.8"/>
+    <path d="M190 152 C206 148 214 158 230 152"/>
+    <path d="M186 166 C200 176 210 172 218 184 C222 191 216 198 209 194" opacity="0.8"/>
+  </g>
+</svg>

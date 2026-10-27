@@ -1,32 +1,40 @@
+/* The palette and look of zephyr's docs (docs/stylesheets/allen.css): Allen black and
+   off-white, purple and teal accents. */
 :root {
-  --bg: #fbfbf9;
-  --panel: #ffffff;
-  --ink: #1d2327;
-  --muted: #5f6b73;
-  --line: #dfe3e6;
-  --grid: #eceff1;
-  --accent: #1f6f8b;
+  --bg: #ffffff;
+  --panel: #f3f0e9;
+  --ink: #111111;
+  --muted: #5d5a54;
+  --line: #ded9d1;
+  --grid: #e7e3db;
+  --field: #ffffff;
+  --accent: #8146e1;
+  --accent-hover: #00a59a;
   --accent-ink: #ffffff;
-  --series-1: #1f6f8b;
-  --series-2: #c2702b;
-  --window: rgba(31, 111, 139, 0.15);
-  --error: #a4262c;
+  --link: #8146e1;
+  --series-1: #8146e1;
+  --series-2: #00a59a;
+  --window: rgba(129, 70, 225, 0.15);
+  --error: #cd0f55;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #15181a;
-    --panel: #1d2124;
-    --ink: #e6e9eb;
-    --muted: #9aa5ad;
-    --line: #2f3539;
-    --grid: #262b2e;
-    --accent: #5fb3cf;
-    --accent-ink: #0d1214;
-    --series-1: #5fb3cf;
-    --series-2: #e3a066;
-    --window: rgba(95, 179, 207, 0.18);
-    --error: #f28b8f;
+    --bg: #0c0c0c;
+    --panel: #191612;
+    --ink: #ece9e2;
+    --muted: #a39f96;
+    --line: #2c2924;
+    --grid: #25221d;
+    --field: #0c0c0c;
+    --accent: #8146e1;
+    --link: #b48fed;
+    --series-1: #b48fed;
+    --series-2: #31fdf2;
+    --window: rgba(180, 143, 237, 0.2);
+    --error: #ff6b9a;
   }
 }
 * {
@@ -36,34 +44,78 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 15px/1.55 var(--font);
 }
-header,
-main {
+main,
+.bar > div,
+.hero {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 0 16px;
+  padding-left: 16px;
+  padding-right: 16px;
 }
-header {
+.bar {
+  background: #000;
+  color: #fff;
+  border-bottom: 3px solid var(--accent-hover);
+}
+.bar > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.bar img {
+  width: 32px;
+  height: 32px;
+}
+.bar strong {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-size: 1.1rem;
+}
+.bar a {
+  margin-left: auto;
+  color: #fff;
+  font-size: 0.9rem;
+  opacity: 0.8;
+  text-decoration: none;
+}
+.bar a:hover {
+  opacity: 1;
+  color: var(--series-2);
+}
+.hero {
   padding-top: 28px;
 }
 h1 {
-  font-size: 1.6rem;
-  margin: 0 0 4px;
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
 }
 .lede {
   color: var(--muted);
-  margin: 0 0 16px;
+  margin: 0 0 8px;
+  max-width: 44rem;
+  font-size: 1.05rem;
+}
+code {
+  font-family: var(--mono);
+  font-size: 0.85em;
 }
 section {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 16px 20px;
+  border-radius: 16px;
+  padding: 18px 22px;
   margin: 16px 0;
 }
 h2 {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   margin: 0 0 10px;
   display: flex;
   align-items: center;
@@ -107,7 +159,7 @@ select {
   padding: 4px 8px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: var(--bg);
+  background: var(--field);
   color: var(--ink);
   width: 9em;
 }
@@ -120,10 +172,10 @@ select {
 }
 button {
   font: inherit;
-  padding: 6px 14px;
-  border-radius: 6px;
+  padding: 7px 18px;
+  border-radius: 999px;
   border: 1px solid var(--line);
-  background: var(--bg);
+  background: var(--field);
   color: var(--ink);
   cursor: pointer;
 }
@@ -132,6 +184,10 @@ button.primary {
   border-color: var(--accent);
   color: var(--accent-ink);
 }
+button.primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
 button:disabled {
   opacity: 0.5;
   cursor: default;
@@ -139,7 +195,8 @@ button:disabled {
 .drop {
   display: block;
   border: 2px dashed var(--line);
-  border-radius: 10px;
+  border-radius: 16px;
+  background: var(--field);
   padding: 22px;
   text-align: center;
   cursor: pointer;
@@ -216,4 +273,13 @@ progress {
 #error {
   color: var(--error);
   font-weight: 600;
+}
+progress {
+  accent-color: var(--accent);
+}
+a {
+  color: var(--link);
+}
+input[type="range"] {
+  accent-color: var(--accent);
 }
